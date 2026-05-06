@@ -3,60 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartAgro Sucre - Nodo Multifuente</title>
+    <title>SmartAgro Sucre - Nodo Inteligente 80%</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --green: #10b981; --blue: #3b82f6; }
+        :root { --bg: #0f172a; --card: #1e293b; --green: #10b981; --blue: #3b82f6; --warning: #f59e0b; --danger: #ef4444; }
         body { background: var(--bg); color: #f8fafc; font-family: 'Inter', sans-serif; }
         .header { background: rgba(30, 41, 59, 0.8); border-bottom: 1px solid #334155; padding: 20px 0; }
         .cyber-title { font-family: 'Orbitron'; color: var(--green); letter-spacing: 2px; }
         .main-card { background: var(--card); border: 1px solid #334155; border-radius: 16px; padding: 20px; height: 100%; }
-        .prediction-item { background: rgba(15, 23, 42, 0.5); border-radius: 12px; padding: 15px; margin-bottom: 12px; border-left: 4px solid #334155; }
+        .prediction-item { background: rgba(15, 23, 42, 0.5); border-radius: 12px; padding: 15px; margin-bottom: 12px; border-left: 4px solid #334155; transition: 0.3s; }
         .rain-active { border-left-color: var(--blue); background: rgba(59, 130, 246, 0.1); }
         .dry-active { border-left-color: var(--green); background: rgba(16, 185, 129, 0.1); }
-        select { background: #334155; color: white; border: 1px solid var(--green); border-radius: 8px; padding: 8px; width: 100%; }
+        .alert-active { border-left-color: var(--danger); background: rgba(239, 68, 68, 0.1); }
+        select { background: #334155; color: white; border: 1px solid var(--green); border-radius: 8px; padding: 8px; width: 100%; cursor: pointer; font-size: 0.9rem; }
+        .info-label { font-size: 0.65rem; text-transform: uppercase; font-weight: bold; color: #94a3b8; }
+        .badge-status { font-size: 0.6rem; padding: 4px 8px; border-radius: 6px; }
     </style>
 </head>
 <body>
 
 <header class="header mb-4 text-center">
     <h2 class="cyber-title">SMARTAGRO <span class="text-white">SUCRE</span></h2>
-    <p class="text-secondary small mb-0 h6">Hito 60%: Sistema de Auditoría Multifuente</p>
+    <p class="text-secondary small mb-0 h6">Hito 80%: Recomendación por Tipo de Cultivo</p>
 </header>
 
 <div class="container pb-5">
     <div class="row g-4">
         <div class="col-lg-4">
             <div class="main-card shadow">
-                <label class="text-secondary small fw-bold mb-2">PROVEEDOR DE DATOS</label>
-                <select id="apiSelector" onchange="iniciarCarga()">
-                    <option value="openmeteo">Open-Meteo (Recomendado)</option>
-                    <option value="tomorrow">Tomorrow.io</option>
-                </select>
+                <div class="mb-3">
+                    <label class="info-label mb-2">Seleccionar Cultivo</label>
+                    <select id="cropSelector" onchange="actualizarInterfaz()">
+                        <option value="yuca">Yuca (Raíces y Tubérculos)</option>
+                        <option value="maiz">Maíz (Cereal Sabanero)</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="info-label mb-2">Proveedor Climático</label>
+                    <select id="apiSelector" onchange="cambiarFuente()">
+                        <option value="openmeteo">Open-Meteo (Global)</option>
+                        <option value="tomorrow">Tomorrow.io (Local)</option>
+                    </select>
+                </div>
                 
-                <hr class="my-4 border-secondary">
+                <hr class="my-4 border-secondary opacity-25">
                 
-                <h6 class="fw-bold mb-3 d-flex justify-content-between">
+                <h6 class="fw-bold mb-3 d-flex justify-content-between align-items-center">
                     <span>📅 Planificador</span>
-                    <span id="label-api" class="badge bg-dark text-info">OPEN-METEO</span>
+                    <span id="label-api" class="badge bg-dark text-info">---</span>
                 </h6>
-                <div id="agro-planner">
-                    </div>
+
+                <div id="agro-planner"></div>
             </div>
         </div>
 
         <div class="col-lg-8">
-            <div class="main-card shadow">
-                <h6 class="fw-bold mb-4 text-secondary">COMPORTAMIENTO TÉRMICO DIARIO</h6>
-                <canvas id="mainChart" height="220"></canvas>
+            <div class="main-card shadow mb-4">
+                <h6 class="fw-bold mb-4 text-secondary">COMPORTAMIENTO TÉRMICO Y ALERTAS</h6>
+                <canvas id="mainChart" height="160"></canvas>
                 
-                <div class="mt-4 p-3 rounded bg-dark border-start border-3 border-info">
-                    <p class="small mb-0 text-secondary">
-                        <strong>Estado del Nodo:</strong> <span id="sys-status" class="text-success">OPERATIVO</span><br>
-                        <strong>Coordenadas:</strong> 9.30° N, -75.40° W (Sincelejo)
-                    </p>
+                <div class="mt-4 p-3 rounded bg-dark border-start border-3 border-info text-secondary small">
+                    <strong>Ubicación:</strong> Sincelejo (9.30° N, -75.40° W) | <strong>Estado:</strong> <span id="sys-status">Cargando...</span>
+                </div>
+            </div>
+
+            <!-- Panel de Información Adaptativo -->
+            <div class="main-card shadow border-info border-opacity-25">
+                <h6 class="cyber-title mb-4" id="info-title" style="font-size: 0.9rem; color: var(--blue);">📘 Contexto Técnico</h6>
+                <div class="row g-3" id="info-content">
+                    <!-- Se llena dinámicamente -->
                 </div>
             </div>
         </div>
@@ -64,125 +82,129 @@
 </div>
 
 <script>
-    // Configuración
-    const TOMORROW_KEY = "FWLyeEPJ4NWQg79qY1WiUghvzx0y9cxs"; // REEMPLAZA ESTO
+    const TOMORROW_KEY = "FWLyeEPJ4NWQg79qY1WiUghvzx0y9cxs"; 
     const lat = 9.30, lon = -75.40;
     let chartObj = null;
+    let datosCache = { labels: [], temps: [], rains: [], vols: [] };
+
+    const CULTIVOS_DATA = {
+        yuca: {
+            titulo: "📘 Contexto Técnico: Cultivo de Yuca",
+            desc: "La yuca es resistente, pero sensible al encharcamiento en suelos de Sucre. Un acumulado >25mm puede generar anoxia radicular.",
+            alertaLluvia: 25,
+            alertaTemp: 35,
+            criticoMsg: "Riesgo de Pudrición de Raíz"
+        },
+        maiz: {
+            titulo: "📘 Contexto Técnico: Cultivo de Maíz",
+            desc: "El maíz en la sabana requiere humedad constante. Temperaturas >32°C sin lluvia causan estrés hídrico severo.",
+            alertaLluvia: 15,
+            alertaTemp: 32,
+            criticoMsg: "Riesgo de Estrés Térmico"
+        }
+    };
+
+    function evaluarSiembra(prob, vol, temp) {
+        const cultivo = document.getElementById('cropSelector').value;
+        const param = CULTIVOS_DATA[cultivo];
+
+        if (vol > param.alertaLluvia) return { label: "🔴 Crítico", msg: param.criticoMsg, class: "alert-active", color: "#ef4444" };
+        if (temp > param.alertaTemp) return { label: "🟡 Precaución", msg: "Temperatura elevada para el ciclo", class: "dry-active", color: "#f59e0b" };
+        if (prob > 50 || vol > 2) return { label: "🔵 Lluvia", msg: "Condiciones de humedad activa", class: "rain-active", color: "#3b82f6" };
+        return { label: "🟢 Óptimo", msg: "Ventana ideal de trabajo", class: "dry-active", color: "#10b981" };
+    }
+
+    async function cambiarFuente() {
+        const source = document.getElementById('apiSelector').value;
+        localStorage.setItem('agro_last_source', source);
+        iniciarCarga();
+    }
+
+    function actualizarInterfaz() {
+        const cultivo = document.getElementById('cropSelector').value;
+        const info = CULTIVOS_DATA[cultivo];
+        
+        // Actualizar Panel de Info
+        document.getElementById('info-title').innerText = info.titulo;
+        document.getElementById('info-content').innerHTML = `
+            <div class="col-md-6 border-end border-secondary border-opacity-25">
+                <p class="info-label mb-1">Manejo Agronómico</p>
+                <p class="small text-secondary mb-0">${info.desc}</p>
+            </div>
+            <div class="col-md-6">
+                <p class="info-label mb-1">Configuración de Alerta</p>
+                <p class="small text-secondary mb-0">Disparo de alerta roja a los <strong>${info.alertaLluvia}mm</strong> y alerta naranja a los <strong>${info.alertaTemp}°C</strong>.</p>
+            </div>`;
+
+        if (datosCache.labels.length > 0) {
+            renderizarUI(datosCache.labels, datosCache.temps, datosCache.rains, datosCache.vols, document.getElementById('apiSelector').value);
+        }
+    }
 
     async function iniciarCarga() {
-        const source = document.getElementById('apiSelector').value;
+        const source = localStorage.getItem('agro_last_source') || 'openmeteo';
+        document.getElementById('apiSelector').value = source;
         const status = document.getElementById('sys-status');
         document.getElementById('label-api').innerText = source.toUpperCase();
         
-        status.innerText = "SINCRONIZANDO...";
-        status.className = "text-warning";
+        status.innerText = "Sincronizando...";
 
         try {
-            let labels = [], temps = [], rains = [], vols = [];
-
             if (source === 'openmeteo') {
                 const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,precipitation_probability_max,precipitation_sum&timezone=auto&forecast_days=5`);
                 const d = await r.json();
-                labels = d.daily.time;
-                temps = d.daily.temperature_2m_max;
-                rains = d.daily.precipitation_probability_max;
-                vols = d.daily.precipitation_sum;
-            } 
-            else {
-                // Fetch a Tomorrow.io con manejo de errores robusto
+                datosCache = { labels: d.daily.time, temps: d.daily.temperature_2m_max, rains: d.daily.precipitation_probability_max, vols: d.daily.precipitation_sum };
+            } else {
                 const r = await fetch(`https://api.tomorrow.io/v4/weather/forecast?location=${lat},${lon}&apikey=${TOMORROW_KEY}&units=metric`);
                 const d = await r.json();
-                
-                console.log("LOG_AGRO: Datos crudos", d);
-
-                // Validamos que existan los datos
-                if (!d.timelines || !d.timelines.daily) {
-                    throw new Error("Estructura de API no válida o Key expirada");
-                }
-
+                datosCache = { labels: [], temps: [], rains: [], vols: [] };
                 d.timelines.daily.slice(0, 5).forEach(day => {
-                    labels.push(day.time.split('T')[0]);
-                    // Tomorrow usa 'temperatureAvg' o 'temperatureMax'
-                    temps.push(day.values.temperatureAvg || day.values.temperatureMax || 0);
-                    rains.push(day.values.precipitationProbabilityMax || day.values.precipitationProbability || day.values.precipitationProbabilityAvg || 0);
-                    vols.push(day.values.rainAccumulationMax || 0);
+                    datosCache.labels.push(day.time.split('T')[0]);
+                    datosCache.temps.push(day.values.temperatureMax || day.values.temperatureAvg || 0);
+                    datosCache.rains.push(day.values.precipitationProbabilityMax || 0);
+                    datosCache.vols.push(day.values.rainAccumulationMax || 0);
                 });
             }
-
-            renderizarUI(labels, temps, rains, vols, source);
-            status.innerText = "CONEXIÓN EXITOSA";
-            status.className = "text-success";
-
+            actualizarInterfaz();
+            status.innerText = "Operativo";
         } catch (err) {
-            console.error("LOG_AGRO Error:", err);
-            status.innerText = "ERROR DE RESPUESTA";
-            status.className = "text-danger";
-            alert("Error al conectar con la fuente. Revisa tu API Key.");
+            status.innerText = "Error";
         }
     }
 
     function renderizarUI(labels, temps, rains, vols, source) {
-    const planner = document.getElementById('agro-planner');
-    if (!planner) return; // Seguridad para evitar errores si el div no existe
-    
-    planner.innerHTML = "";
-    
-    labels.forEach((date, i) => {
-        // Usamos los datos que ya extrajiste (rains y vols)
-        const pLluvia = rains[i];
-        const vLluvia = vols[i];
+        const planner = document.getElementById('agro-planner');
+        planner.innerHTML = "";
+        labels.forEach((date, i) => {
+            const consulta = evaluarSiembra(rains[i], vols[i], temps[i]);
+            planner.innerHTML += `
+                <div class="prediction-item ${consulta.class}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-bold small text-white">${date.split('-')[2]}/${date.split('-')[1]}</span>
+                        <span class="badge bg-dark badge-status" style="color:${consulta.color}">${consulta.label}</span>
+                    </div>
+                    <p class="small my-1 text-secondary" style="font-size:0.65rem">${consulta.msg}</p>
+                    <div class="d-flex justify-content-between info-label" style="font-size:0.55rem">
+                        <span>Lluvia: ${rains[i]}%</span><span>Vol: ${vols[i].toFixed(1)}mm</span><span>Temp: ${temps[i].toFixed(0)}°C</span>
+                    </div>
+                </div>`;
+        });
+        actualizarGrafica(labels, temps, source);
+    }
 
-        // Lógica de decisión técnica para el diseño
-        // Si la probabilidad es > 40% o el acumulado > 1.5mm, se activa el modo lluvia
-        const esLluvia = pLluvia > 40 || vLluvia > 1.5;
+    function actualizarGrafica(labels, temps, source) {
+        if (chartObj) chartObj.destroy();
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        chartObj = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels.map(l => l.split('-')[2] + '/' + l.split('-')[1]),
+                datasets: [{ label: 'Temp', data: temps, borderColor: source === 'openmeteo' ? '#10b981' : '#3b82f6', fill: false, tension: 0.4 }]
+            },
+            options: { plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#64748b' } }, x: { ticks: { color: '#64748b' } } } }
+        });
+    }
 
-        planner.innerHTML += `
-            <div class="prediction-item ${esLluvia ? 'rain-active' : 'dry-active'}">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span class="fw-bold small text-white">${date.split('-')[2]}/${date.split('-')[1]}</span>
-                    <span class="fw-bold text-uppercase" style="font-size:0.65rem; color:${esLluvia ? '#3b82f6' : '#10b981'}">
-                        ${esLluvia ? '💧 LLUVIA DETECTADA' : '☀️ DÍA SECO'}
-                    </span>
-                </div>
-                <div class="small text-secondary" style="font-size:0.7rem">
-                    Probabilidad: ${pLluvia}% | Acumulado: ${vLluvia.toFixed(1)}mm
-                </div>
-            </div>`;
-    });
-
-    // Actualizamos la gráfica con los nuevos datos
-    actualizarGrafica(labels, temps, source);
-}
-
-// Función auxiliar para que la gráfica no se rompa al cambiar de API
-function actualizarGrafica(labels, temps, source) {
-    if (chartObj) chartObj.destroy();
-    const ctx = document.getElementById('mainChart').getContext('2d');
-    chartObj = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels.map(l => l.split('-')[2] + '/' + l.split('-')[1]),
-            datasets: [{
-                label: 'Temperatura Máxima (°C) - ' + source.toUpperCase(),
-                data: temps,
-                borderColor: source === 'openmeteo' ? '#10b981' : '#3b82f6',
-                backgroundColor: source === 'openmeteo' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-                fill: true,
-                tension: 0.4,
-                borderWidth: 3
-            }]
-        },
-        options: {
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
-                x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
-            }
-        }
-    });
-}
-
-    // Carga inicial
     iniciarCarga();
 </script>
 </body>
