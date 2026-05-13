@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartAgro Sucre - Nodo Inteligente 80%</title>
+    <title>SmartAgro Sucre</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -26,12 +26,31 @@
 
 <header class="header mb-4 text-center">
     <h2 class="cyber-title">SMARTAGRO <span class="text-white">SUCRE</span></h2>
-    <p class="text-secondary small mb-0 h6">Hito 80%: Recomendación por Tipo de Cultivo</p>
 </header>
 
+
 <div class="container pb-5">
+   <div class="main-card shadow mb-3">
+    <label class="info-label mb-2">🔍 Ubicación del Cultivo</label>
+    
+    <div class="input-group mb-2">
+        <input type="text" id="cityInput" class="form-control bg-dark text-white border-secondary" placeholder="Ej: Sincelejo, Sucre">
+        <button class="btn btn-outline-success" onclick="buscarCiudad()">Buscar</button>
+    </div>
+
+    <button class="btn btn-sm btn-outline-info w-100" onclick="obtenerUbicacionGPS()">
+        📍 Usar mi ubicación actual
+    </button>
+
+    <div class="text-secondary mt-2" style="font-size: 0.7rem;">
+        <div id="loc-status">Esperando ubicación...</div>
+        
+        Punto actual: <span id="display-coords">9.30, -75.40</span>
+    </div>
+</div>
     <div class="row g-4">
         <div class="col-lg-4">
+            
             <div class="main-card shadow">
                 <div class="mb-3">
                     <label class="info-label mb-2">Seleccionar Cultivo</label>
@@ -66,8 +85,9 @@
                 <canvas id="mainChart" height="160"></canvas>
                 
                 <div class="mt-4 p-3 rounded bg-dark border-start border-3 border-info text-secondary small">
-                    <strong>Ubicación:</strong> Sincelejo (9.30° N, -75.40° W) | <strong>Estado:</strong> <span id="sys-status">Cargando...</span>
-                </div>
+    <strong>Ubicación:</strong> <span id="loc-text">Sincelejo (9.30° N, -75.40° W)</span> | 
+    <strong>Estado:</strong> <span id="sys-status">Cargando...</span>
+</div>
             </div>
 
             <!-- Panel de Información Adaptativo -->
@@ -83,7 +103,10 @@
 
 <script>
     const TOMORROW_KEY = "FWLyeEPJ4NWQg79qY1WiUghvzx0y9cxs"; 
-    const lat = 9.30, lon = -75.40;
+    // Coordenadas iniciales (Sincelejo)
+    let currentLat = 9.30;
+    let currentLon = -75.40;
+    
     let chartObj = null;
     let datosCache = { labels: [], temps: [], rains: [], vols: [] };
 
@@ -103,6 +126,64 @@
             criticoMsg: "Riesgo de Estrés Térmico"
         }
     };
+
+    // --- NUEVAS FUNCIONES DE UBICACIÓN ---
+
+    async function buscarCiudad() {
+        const query = document.getElementById('cityInput').value;
+        if (!query) return;
+        
+        const statusLabel = document.getElementById('loc-status');
+        statusLabel.innerText = "Buscando...";
+
+        try {
+            const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+            const data = await resp.json();
+            
+            if (data.length > 0) {
+                currentLat = parseFloat(data[0].lat);
+                currentLon = parseFloat(data[0].lon);
+                
+                // Actualizar interfaz con el nombre encontrado
+                document.getElementById('display-coords').innerText = `${currentLat.toFixed(4)}, ${currentLon.toFixed(4)}`;
+                statusLabel.innerHTML = `<i class="text-info">${data[0].display_name}</i>`;
+                const nombreCorto = data[0].name || query; 
+                document.getElementById('loc-text').innerText = `${nombreCorto} (${currentLat.toFixed(2)}° N, ${currentLon.toFixed(2)}° W)`;
+                iniciarCarga(); // Recargar clima con nuevas coordenadas
+            } else {
+                statusLabel.innerText = "Lugar no encontrado.";
+            }
+        } catch (err) {
+            statusLabel.innerText = "Error en la búsqueda.";
+        }
+    }
+
+    function obtenerUbicacionGPS() {
+        const statusLabel = document.getElementById('loc-status');
+        if (!navigator.geolocation) {
+            alert("Geolocalización no soportada por el navegador.");
+            return;
+        }
+
+        statusLabel.innerText = "Accediendo al GPS...";
+        
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                currentLat = pos.coords.latitude;
+                currentLon = pos.coords.longitude;
+                
+                document.getElementById('display-coords').innerText = `${currentLat.toFixed(4)}, ${currentLon.toFixed(4)}`;
+                statusLabel.innerText = "Ubicación detectada por GPS";
+                iniciarCarga();
+            },
+            (err) => {
+                statusLabel.innerText = "Acceso a GPS denegado.";
+                alert("Por favor, permite el acceso a la ubicación.");
+            }
+        );
+    }
+
+    // --- LÓGICA CORE DEL SISTEMA ---
 
     function evaluarSiembra(prob, vol, temp) {
         const cultivo = document.getElementById('cropSelector').value;
@@ -124,7 +205,6 @@
         const cultivo = document.getElementById('cropSelector').value;
         const info = CULTIVOS_DATA[cultivo];
         
-        // Actualizar Panel de Info
         document.getElementById('info-title').innerText = info.titulo;
         document.getElementById('info-content').innerHTML = `
             <div class="col-md-6 border-end border-secondary border-opacity-25">
@@ -133,7 +213,7 @@
             </div>
             <div class="col-md-6">
                 <p class="info-label mb-1">Configuración de Alerta</p>
-                <p class="small text-secondary mb-0">Disparo de alerta roja a los <strong>${info.alertaLluvia}mm</strong> y alerta naranja a los <strong>${info.alertaTemp}°C</strong>.</p>
+                <p class="small text-secondary mb-0">Alerta roja a los <strong>${info.alertaLluvia}mm</strong> y alerta naranja a los <strong>${info.alertaTemp}°C</strong>.</p>
             </div>`;
 
         if (datosCache.labels.length > 0) {
@@ -151,24 +231,36 @@
 
         try {
             if (source === 'openmeteo') {
-                const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,precipitation_probability_max,precipitation_sum&timezone=auto&forecast_days=5`);
+                const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${currentLat}&longitude=${currentLon}&daily=temperature_2m_max,precipitation_probability_max,precipitation_sum&timezone=auto&forecast_days=5`);
                 const d = await r.json();
                 datosCache = { labels: d.daily.time, temps: d.daily.temperature_2m_max, rains: d.daily.precipitation_probability_max, vols: d.daily.precipitation_sum };
             } else {
-                const r = await fetch(`https://api.tomorrow.io/v4/weather/forecast?location=${lat},${lon}&apikey=${TOMORROW_KEY}&units=metric`);
+                const r = await fetch(`https://api.tomorrow.io/v4/weather/forecast?location=${currentLat},${currentLon}&apikey=${TOMORROW_KEY}&units=metric`);
                 const d = await r.json();
                 datosCache = { labels: [], temps: [], rains: [], vols: [] };
                 d.timelines.daily.slice(0, 5).forEach(day => {
                     datosCache.labels.push(day.time.split('T')[0]);
                     datosCache.temps.push(day.values.temperatureMax || day.values.temperatureAvg || 0);
                     datosCache.rains.push(day.values.precipitationProbabilityMax || 0);
-                    datosCache.vols.push(day.values.rainAccumulationMax || 0);
+                    let volRaw = day.values.rainAccumulationMax || day.values.rainAccumulationAvg || 0;
+
+// Si el valor es exagerado (> 100mm), es un error de escala de la API (está en décimas o acumulado mensual)
+// Lo normalizamos dividiendo por 10 o por 100 según el exceso.
+if (volRaw > 100) {
+    volRaw = volRaw / 100; 
+}
+
+datosCache.vols.push(volRaw);
                 });
             }
             actualizarInterfaz();
+            if (status) {
+            status.innerHTML = `📍 Lat: ${currentLat.toFixed(2)} | Lon: ${currentLon.toFixed(2)} — <b>Operativo</b>`;
+        }
             status.innerText = "Operativo";
         } catch (err) {
             status.innerText = "Error";
+            console.error("Error de carga:", err);
         }
     }
 
@@ -184,8 +276,8 @@
                         <span class="badge bg-dark badge-status" style="color:${consulta.color}">${consulta.label}</span>
                     </div>
                     <p class="small my-1 text-secondary" style="font-size:0.65rem">${consulta.msg}</p>
-                    <div class="d-flex justify-content-between info-label" style="font-size:0.55rem">
-                        <span>Lluvia: ${rains[i]}%</span><span>Vol: ${vols[i].toFixed(1)}mm</span><span>Temp: ${temps[i].toFixed(0)}°C</span>
+                    <div class="d-flex justify-content-between info-label" style="font-size:0.75rem">
+                        <span class="text-white" style="font-size:1rem">Probabilidad de Lluvia: ${rains[i]}%</span><span>Vol: ${vols[i].toFixed(1)}mm</span><span>Temp: ${temps[i].toFixed(0)}°C</span>
                     </div>
                 </div>`;
         });
@@ -199,12 +291,26 @@
             type: 'line',
             data: {
                 labels: labels.map(l => l.split('-')[2] + '/' + l.split('-')[1]),
-                datasets: [{ label: 'Temp', data: temps, borderColor: source === 'openmeteo' ? '#10b981' : '#3b82f6', fill: false, tension: 0.4 }]
+                datasets: [{ 
+                    label: 'Temp', 
+                    data: temps, 
+                    borderColor: source === 'openmeteo' ? '#10b981' : '#3b82f6', 
+                    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                    fill: true, 
+                    tension: 0.4 
+                }]
             },
-            options: { plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#64748b' } }, x: { ticks: { color: '#64748b' } } } }
+            options: { 
+                plugins: { legend: { display: false } }, 
+                scales: { 
+                    y: { grid: { color: '#334155' }, ticks: { color: '#64748b' } }, 
+                    x: { grid: { display: false }, ticks: { color: '#64748b' } } 
+                } 
+            }
         });
     }
 
+    // Carga inicial al abrir la página
     iniciarCarga();
 </script>
 </body>
