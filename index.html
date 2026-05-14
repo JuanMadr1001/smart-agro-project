@@ -246,7 +246,7 @@
 
 // Si el valor es exagerado (> 100mm), es un error de escala de la API (está en décimas o acumulado mensual)
 // Lo normalizamos dividiendo por 10 o por 100 según el exceso.
-if (volRaw > 100) {
+if (volRaw > 10) {
     volRaw = volRaw / 100; 
 }
 
